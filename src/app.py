@@ -59,8 +59,8 @@ def get_db_connection():
 # Rota principal - página de consulta
 @app.route('/')
 def index():
-    """Rota principal - Healthcheck simples"""
-    return {'status': 'online', 'message': 'API ContaAzul - Sistema funcionando!', 'routes': ['/turbox', '/turbochat', '/sin', '/health']}, 200
+    """Rota principal - Redireciona para TurboX Dashboard"""
+    return render_template('turbox.html')
 
 @app.route('/health')
 def health_check():
