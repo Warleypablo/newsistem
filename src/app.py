@@ -30,7 +30,7 @@ def get_db_connection():
         return None
         
     try:
-        # Verificar se estamos no Heroku (DATABASE_URL estará disponível)
+        # Verificar se estamos no Railway/Heroku (DATABASE_URL estará disponível)
         database_url = os.environ.get('DATABASE_URL')
         
         if database_url:
@@ -43,13 +43,24 @@ def get_db_connection():
             conn = psycopg2.connect(database_url)
         else:
             # Conectar usando variáveis de ambiente individuais
+            host = os.getenv("PG_HOST")
+            dbname = os.getenv("PG_DBNAME")
+            user = os.getenv("PG_USER")
+            password = os.getenv("PG_PASSWORD")
+            port = os.getenv("PG_PORT", "5432")
+            
+            # Verificar se as variáveis essenciais estão definidas
+            if not all([host, dbname, user, password]):
+                app.logger.warning("Variáveis de ambiente do banco de dados não configuradas")
+                return None
+                
             conn = psycopg2.connect(
-                host=os.getenv("PG_HOST"),
-                dbname=os.getenv("PG_DBNAME"),
-                user=os.getenv("PG_USER"),
-            password=os.getenv("PG_PASSWORD"),
-            port=os.getenv("PG_PORT")
-        )
+                host=host,
+                dbname=dbname,
+                user=user,
+                password=password,
+                port=port
+            )
         conn.autocommit = True
         return conn
     except Exception as e:
@@ -82,10 +93,29 @@ def turbochat():
 def check_db():
     import sys
     print("=== DEBUG: Endpoint /check-db chamado ===", file=sys.stderr)
+    
+    # Verificar se psycopg2 está disponível
     if not PSYCOPG2_AVAILABLE:
         return jsonify({
             'status': 'error', 
             'message': 'O módulo psycopg2 não está instalado. Por favor, instale-o com: pip install psycopg2-binary'
+        }), 500
+    
+    # Verificar variáveis de ambiente
+    database_url = os.environ.get('DATABASE_URL')
+    pg_vars = {
+        'PG_HOST': os.environ.get('PG_HOST'),
+        'PG_DBNAME': os.environ.get('PG_DBNAME'),
+        'PG_USER': os.environ.get('PG_USER'),
+        'PG_PASSWORD': os.environ.get('PG_PASSWORD')
+    }
+    
+    if not database_url and not all(pg_vars.values()):
+        missing_vars = [k for k, v in pg_vars.items() if not v] if not database_url else []
+        return jsonify({
+            'status': 'error',
+            'message': f'Variáveis de ambiente do banco não configuradas. Configure DATABASE_URL ou as variáveis: {", ".join(missing_vars)}',
+            'config_needed': True
         }), 500
         
     try:
@@ -96,7 +126,7 @@ def check_db():
             return jsonify({'status': 'success', 'message': 'Conexão com o banco de dados estabelecida com sucesso!'})
         else:
             print("=== DEBUG: Falha na conexão com banco ===", file=sys.stderr)
-            return jsonify({'status': 'error', 'message': 'Não foi possível conectar ao banco de dados.'}), 500
+            return jsonify({'status': 'error', 'message': 'Não foi possível conectar ao banco de dados. Verifique as credenciais.'}), 500
     except Exception as e:
         print(f"=== DEBUG: Erro na conexão: {str(e)} ===", file=sys.stderr)
         return jsonify({'status': 'error', 'message': f'Erro ao verificar conexão: {str(e)}'}), 500
@@ -128,10 +158,21 @@ def buscar():
             'error': 'O módulo psycopg2 não está instalado. Por favor, instale-o com: pip install psycopg2-binary'
         }), 500
     
+    # Verificar se o banco está configurado
+    database_url = os.environ.get('DATABASE_URL')
+    pg_vars = [os.environ.get('PG_HOST'), os.environ.get('PG_DBNAME'), os.environ.get('PG_USER'), os.environ.get('PG_PASSWORD')]
+    
+    if not database_url and not all(pg_vars):
+        return jsonify({
+            'error': '❌ Banco de dados não configurado no Railway. Configure as variáveis DATABASE_URL ou PG_HOST, PG_DBNAME, PG_USER, PG_PASSWORD.',
+            'demo_mode': True,
+            'message': 'Para configurar o banco, acesse o painel do Railway e adicione um banco PostgreSQL.'
+        }), 500
+    
     try:
         conn = get_db_connection()
         if not conn:
-            return jsonify({'error': 'Não foi possível conectar ao banco de dados'}), 500
+            return jsonify({'error': '❌ Não foi possível conectar ao banco de dados. Verifique as credenciais.'}), 500
             
         cursor = conn.cursor()
         
