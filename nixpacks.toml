@@ -1,7 +1,0 @@
-# nixpacks.toml
-
-[variables]
-PORT = "8000"
-
-[start]
-cmd = "gunicorn src.app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120"
