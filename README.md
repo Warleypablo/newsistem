@@ -127,6 +127,17 @@ Consulte os arquivos na pasta `docs/` para instruções detalhadas de deploy:
 
 ## 🔧 Funcionalidades
 
+### TurboChat Inteligente com ChatGPT
+O TurboChat é um assistente conversacional que permite consultas analíticas sobre seus dados financeiros:
+
+- **🤖 Integração ChatGPT:** Interpreta consultas em linguagem natural e gera SQL automaticamente
+- **📊 Consultas Analíticas:** "Quanto recebemos este mês?", "Total de receitas em 2024"
+- **🏆 Rankings de Clientes:** "Top 10 clientes", "Maior cliente por receita"
+- **⚠️ Análise de Inadimplência:** "Clientes inadimplentes", "Faturas vencidas"
+- **🔍 Busca por CNPJ:** Digite o CNPJ para informações detalhadas do cliente
+- **💬 Linguagem Natural:** Faça perguntas complexas como "Quais clientes pagaram mais de R$ 10.000 em dezembro?"
+
+### Outras Funcionalidades
 - **Lista de Clientes:** Visualização geral com filtros
 - **Busca Específica:** Busca detalhada por CNPJ/Nome
 - **Integração ClickUp:** Sincronização de dados
@@ -157,6 +168,8 @@ Consulte os arquivos na pasta `docs/` para instruções detalhadas de deploy:
 
 ## 🔒 Configuração
 
+### 1. Configurar Banco de Dados
+
 Crie um arquivo `.env` na raiz baseado em `config/.env.example`:
 
 ```env
@@ -166,7 +179,25 @@ PG_DBNAME=seu_banco
 PG_USER=seu_usuario
 PG_PASSWORD=sua_senha
 DATABASE_URL=postgresql://user:pass@host:port/db
+
+# Configurações do ChatGPT (OpenAI) - OPCIONAL
+OPENAI_API_KEY=sua_api_key_do_openai_aqui
 ```
+
+### 2. Configurar ChatGPT (Opcional)
+
+Para habilitar a interpretação inteligente de consultas:
+
+1. **Obter API Key**: Acesse [OpenAI Platform](https://platform.openai.com/api-keys)
+2. **Criar conta**: Se não tiver, crie uma conta na OpenAI
+3. **Gerar API Key**: Crie uma nova API key
+4. **Configurar**: Adicione a key no arquivo `.env`:
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+> **💡 Nota**: O ChatGPT é opcional. Sem ele, o sistema funciona com interpretação básica de palavras-chave.
 
 ## 📚 Documentação
 

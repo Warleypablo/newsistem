@@ -12,11 +12,55 @@ except ImportError:
     print("AVISO: psycopg2 não está instalado. A conexão com o banco de dados não estará disponível.")
     print("Para instalar, execute: pip install psycopg2-binary")
 
+# Tentar importar openai para integração com ChatGPT
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("AVISO: openai não está instalado. Para usar ChatGPT, execute: pip install openai")
+
 # Carregar variáveis de ambiente
 load_dotenv()
 
 # Configuração da aplicação Flask
 app = Flask(__name__)
+
+# Configuração do OpenAI
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+if OPENAI_AVAILABLE and OPENAI_API_KEY:
+    openai.api_key = OPENAI_API_KEY
+
+# Descrição das colunas da tabela a_receber_turbo para o ChatGPT
+TABELA_DESCRICAO = """
+Tabela: a_receber_turbo
+Colunas:
+- status: indica o status do pagamento (ACQUITTED=paga, OVERDUE=inadimplente, LOST=perda, PENDING=pendente)
+- total: valor total da parcela
+- descricao: descrição sobre o que se refere a parcela
+- data_vencimento: data de vencimento da parcela
+- nao_pago: quanto deixou de ser pago da parcela
+- pago: quanto foi pago da parcela
+- cliente_nome: nome do cliente que pagará a parcela
+- cnpj: CNPJ do cliente
+- telefone: número de celular do cliente
+- status_clickup: status operacional do cliente
+- link_pagamento: link de pagamento da parcela
+
+Tabela: clientes_turbo
+Colunas:
+- nome: nome do cliente
+- cnpj: CNPJ do cliente
+
+Tabela: clientes_clickup
+Colunas:
+- responsavel: responsável pelo cliente
+- segmento: segmento do cliente
+- cluster: cluster do cliente
+- status_conta: status da conta do cliente
+- atividade: atividade do cliente
+- telefone: telefone do cliente
+"""
 
 # Rota principal - TurboX Dashboard
 @app.route('/turbox')
@@ -66,6 +110,137 @@ def get_db_connection():
     except Exception as e:
         app.logger.error(f"Erro ao conectar ao banco de dados: {str(e)}")
         return None
+
+def interpretar_consulta_com_chatgpt(mensagem_usuario):
+    """Usar ChatGPT para interpretar a consulta do usuário e gerar SQL"""
+    if not OPENAI_AVAILABLE or not OPENAI_API_KEY:
+        return None, "ChatGPT não está configurado. Configure OPENAI_API_KEY."
+    
+    try:
+        prompt = f"""
+Você é um assistente especializado em consultas SQL para um sistema financeiro.
+
+{TABELA_DESCRICAO}
+
+Consulta do usuário: "{mensagem_usuario}"
+
+Gere uma query SQL PostgreSQL para responder à consulta do usuário. 
+Retorne APENAS o SQL, sem explicações.
+Use JOINs quando necessário entre as tabelas.
+Para consultas de valores, use SUM() para somar valores.
+Para datas, use CURRENT_DATE para data atual.
+Para filtros de status, use os valores exatos: ACQUITTED, OVERDUE, LOST, PENDING.
+
+Exemplos:
+- "Quanto recebemos em 2024?" -> SELECT SUM(pago) FROM a_receber_turbo WHERE EXTRACT(YEAR FROM data_vencimento) = 2024
+- "Clientes inadimplentes" -> SELECT cliente_nome, SUM(nao_pago) FROM a_receber_turbo WHERE status = 'OVERDUE' GROUP BY cliente_nome
+- "Top 5 clientes" -> SELECT cliente_nome, SUM(pago) FROM a_receber_turbo GROUP BY cliente_nome ORDER BY SUM(pago) DESC LIMIT 5
+
+SQL:
+"""
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Você é um especialista em SQL para sistemas financeiros. Retorne apenas o código SQL, sem explicações."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
+            temperature=0.1
+        )
+        
+        sql_query = response.choices[0].message.content.strip()
+        # Remover possíveis marcadores de código
+        sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
+        
+        return sql_query, None
+        
+    except Exception as e:
+        return None, f"Erro ao consultar ChatGPT: {str(e)}"
+
+def executar_consulta_chatgpt(mensagem_usuario):
+    """Executar consulta interpretada pelo ChatGPT"""
+    if not PSYCOPG2_AVAILABLE:
+        return jsonify({
+            'response': '❌ Módulo de banco de dados não disponível.',
+            'type': 'error'
+        })
+    
+    # Interpretar consulta com ChatGPT
+    sql_query, erro = interpretar_consulta_com_chatgpt(mensagem_usuario)
+    
+    if erro:
+        return jsonify({
+            'response': f'🤖 {erro}\n\n💡 Usando interpretação básica...',
+            'type': 'warning'
+        })
+    
+    if not sql_query:
+        return jsonify({
+            'response': '❌ Não foi possível interpretar sua consulta.',
+            'type': 'error'
+        })
+    
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({
+                'response': '❌ Não foi possível conectar ao banco de dados.',
+                'type': 'error'
+            })
+            
+        from psycopg2.extras import RealDictCursor
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Executar query gerada pelo ChatGPT
+        cursor.execute(sql_query)
+        resultados = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # Formatar resposta
+        if not resultados:
+            response = "❌ Nenhum resultado encontrado para sua consulta."
+        else:
+            response = "🤖 **Consulta interpretada pelo ChatGPT:**\n\n"
+            
+            # Formatar resultados de forma inteligente
+            if len(resultados) == 1 and len(resultados[0]) == 1:
+                # Resultado único (ex: soma, contagem)
+                valor = list(resultados[0].values())[0]
+                if isinstance(valor, (int, float)):
+                    response += f"💰 **Resultado**: R$ {float(valor):,.2f}\n"
+                else:
+                    response += f"📊 **Resultado**: {valor}\n"
+            else:
+                # Múltiplos resultados
+                for i, row in enumerate(resultados[:10], 1):  # Limitar a 10 resultados
+                    response += f"{i}. "
+                    for key, value in row.items():
+                        if isinstance(value, (int, float)) and 'total' in key.lower() or 'pago' in key.lower() or 'valor' in key.lower():
+                            response += f"**{key}**: R$ {float(value):,.2f} "
+                        else:
+                            response += f"**{key}**: {value} "
+                    response += "\n"
+                
+                if len(resultados) > 10:
+                    response += f"\n... e mais {len(resultados) - 10} resultados\n"
+            
+            response += f"\n🔍 **Query executada**: `{sql_query}`"
+        
+        return jsonify({
+            'response': response,
+            'type': 'success',
+            'sql_query': sql_query,
+            'data': [dict(row) for row in resultados]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'response': f'❌ Erro ao executar consulta: {str(e)}\n\n🔍 **Query**: `{sql_query}`',
+            'type': 'error'
+        })
 
 # Rota principal - página de consulta
 @app.route('/')
@@ -500,13 +675,39 @@ def turbochat_message():
     print("=== DEBUG: Endpoint /turbochat/message chamado ===", file=sys.stderr)
     
     data = request.get_json()
-    message = data.get('message', '').strip().lower()
+    message_original = data.get('message', '').strip()
+    message = message_original.lower()
     
     if not message:
         return jsonify({'error': 'Mensagem é obrigatória'}), 400
     
     # Processar diferentes tipos de consulta baseado na mensagem
     try:
+        # Detectar CNPJ primeiro (prioridade alta)
+        import re
+        cnpj_match = re.search(r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}|\d{14}', message)
+        if cnpj_match:
+            cnpj = re.sub(r'\D', '', cnpj_match.group())
+            return buscar_por_cnpj_chat(cnpj)
+        
+        # Tentar interpretar com ChatGPT primeiro (se disponível)
+        if OPENAI_AVAILABLE and OPENAI_API_KEY:
+            try:
+                resultado_chatgpt = executar_consulta_chatgpt(message_original)
+                resultado_json = resultado_chatgpt.get_json()
+                
+                # Se o ChatGPT retornou sucesso, usar sua resposta
+                if resultado_json.get('type') == 'success':
+                    return resultado_chatgpt
+                # Se retornou warning, continuar com interpretação básica
+                elif resultado_json.get('type') == 'warning':
+                    pass  # Continua para interpretação básica
+            except Exception as e:
+                print(f"Erro ChatGPT: {e}", file=sys.stderr)
+                # Em caso de erro, continuar com interpretação básica
+                pass
+        
+        # Fallback: Interpretação básica (sistema atual)
         # Consultas analíticas sobre receitas e valores
         if any(word in message for word in ['quanto', 'valor', 'total', 'receita', 'recebemos', 'arrecadamos']):
             return processar_consulta_analitica(message)
@@ -518,15 +719,6 @@ def turbochat_message():
         # Consultas sobre status e inadimplência
         elif any(word in message for word in ['inadimplente', 'vencido', 'pendente', 'atraso', 'devendo']):
             return processar_consulta_inadimplencia(message)
-        
-        # Detectar tipo de consulta por CNPJ
-        elif 'cnpj' in message or any(char.isdigit() for char in message if len([c for c in message if c.isdigit()]) >= 8):
-            # Extrair CNPJ da mensagem
-            import re
-            cnpj_match = re.search(r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}|\d{14}', message)
-            if cnpj_match:
-                cnpj = re.sub(r'\D', '', cnpj_match.group())
-                return buscar_por_cnpj_chat(cnpj)
         
         # Listar todos os clientes (verificar ANTES de buscar por nome)
         elif any(word in message for word in ['listar', 'todos', 'lista']) and 'cliente' in message:
@@ -544,8 +736,10 @@ def turbochat_message():
         
         # Ajuda
         elif any(word in message for word in ['ajuda', 'help', 'como', 'usar']):
+            chatgpt_status = "🤖 **ChatGPT**: Ativo - Faça perguntas em linguagem natural!" if (OPENAI_AVAILABLE and OPENAI_API_KEY) else "🤖 **ChatGPT**: Não configurado"
             return jsonify({
                 'response': 'Olá! Eu sou o TurboChat Inteligente! 🤖\n\n' +
+                           f'{chatgpt_status}\n\n' +
                            '**📊 Consultas Analíticas:**\n' +
                            '• "Quanto recebemos em 2025?"\n' +
                            '• "Qual o total de receitas este mês?"\n' +
@@ -561,14 +755,15 @@ def turbochat_message():
                            '**⚠️ Status e Inadimplência:**\n' +
                            '• "Clientes inadimplentes"\n' +
                            '• "Faturas vencidas hoje"\n\n' +
-                           'Digite sua consulta de forma natural!',
+                           '💡 **Com ChatGPT ativo, você pode fazer perguntas complexas em linguagem natural!**',
                 'type': 'help'
             })
         
         # Resposta padrão
         else:
+            chatgpt_status = "🤖 **ChatGPT**: Ativo" if (OPENAI_AVAILABLE and OPENAI_API_KEY) else "🤖 **ChatGPT**: Não configurado"
             return jsonify({
-                'response': 'Não entendi sua solicitação. Digite "ajuda" para ver todos os comandos disponíveis, incluindo as novas consultas analíticas! 🤖',
+                'response': f'Não entendi sua solicitação. Digite "ajuda" para ver todos os comandos disponíveis! 🤖\n\n{chatgpt_status}\n\n💡 **Dica**: Com ChatGPT ativo, você pode fazer perguntas em linguagem natural!',
                 'type': 'error'
             })
             
