@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurboX - Central de Ferramentas</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --dark-gradient: linear-gradient(135deg, #434343 0%, #000000 100%);
+            
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --bg-card-hover: rgba(255, 255, 255, 0.1);
+            
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --text-muted: rgba(255, 255, 255, 0.6);
+            
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-light: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.4);
+            
+            --border-radius: 20px;
+            --border-radius-sm: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Background Animation */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            z-index: -1;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+        }
+
+        /* Header Styles */
+        .header {
+            text-align: center;
+            margin-bottom: 80px;
+            padding: 60px 0;
+        }
+
+        .logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: clamp(3rem, 8vw, 5rem);
+            font-weight: 900;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease-in-out infinite;
+            position: relative;
+            letter-spacing: -0.02em;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: -1;
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            25% { background-position: 100% 50%; }
+            50% { background-position: 50% 100%; }
+            75% { background-position: 50% 0%; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .subtitle {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        .description {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+
+        /* Stats Section */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin: 50px 0;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 30px 20px;
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: var(--transition);
+        }
+
+        .stat-item:hover {
+            transform: translateY(-5px);
+            background: var(--bg-card-hover);
+            box-shadow: var(--shadow-light);
+        }
+
+        .stat-item:hover::before {
+            transform: scaleX(1);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            display: block;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Tools Grid */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .tool-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            height: fit-content;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: var(--transition);
+        }
+
+        .tool-card.sin::before {
+            background: var(--success-gradient);
+        }
+
+        .tool-card.turbochat::before {
+            background: var(--primary-gradient);
+        }
+
+        .tool-card.coming-soon::before {
+            background: var(--warning-gradient);
+        }
+
+        .tool-card:hover {
+            transform: translateY(-10px);
+            background: var(--bg-card-hover);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .tool-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .tool-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+        .tool-icon {
+            font-size: 3.5rem;
+            margin-bottom: 0;
+            padding: 20px;
+            border-radius: var(--border-radius-sm);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .tool-card.sin .tool-icon {
+            color: #4ecdc4;
+            background: rgba(78, 205, 196, 0.1);
+        }
+
+        .tool-card.turbochat .tool-icon {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .tool-card.coming-soon .tool-icon {
+            color: #feca57;
+            background: rgba(254, 202, 87, 0.1);
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.active {
+            background: rgba(78, 205, 196, 0.2);
+            color: #4ecdc4;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+
+        .status-badge.coming {
+            background: rgba(254, 202, 87, 0.2);
+            color: #feca57;
+            border: 1px solid rgba(254, 202, 87, 0.3);
+        }
+
+        .tool-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .tool-description {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 30px;
+        }
+
+        .tool-features {
+            list-style: none;
+            margin-bottom: 35px;
+        }
+
+        .tool-features li {
+            padding: 12px 0;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tool-features li:last-child {
+            border-bottom: none;
+        }
+
+        .tool-features li::before {
+            content: '✓';
+            color: #4ecdc4;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 1.1rem;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(78, 205, 196, 0.1);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .tool-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: var(--transition);
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: var(--transition);
+        }
+
+        .tool-button:hover::before {
+            left: 100%;
+        }
+
+        .tool-button.primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .tool-button.primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .tool-button.success {
+            background: var(--success-gradient);
+            color: white;
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+        }
+
+        .tool-button.success:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(79, 172, 254, 0.4);
+        }
+
+        .tool-button.disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            border: 1px solid var(--border-color);
+        }
+
+        .tool-button.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 100px;
+            padding: 60px 0;
+            border-top: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .footer p {
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .footer p:first-child {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            .tools-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            
+            .tool-card {
+                padding: 30px 25px;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 20px;
+            }
+            
+            .stat-number {
+                font-size: 2.5rem;
+            }
+            
+            .tool-icon {
+                font-size: 3rem;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 40px 0;
+                margin-bottom: 50px;
+            }
+            
+            .tool-card {
+                padding: 25px 20px;
+            }
+            
+            .tool-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .status-badge {
+                align-self: flex-end;
+            }
+        }
+
+        /* Loading Animation */
+        .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .loading-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: loadingDots 1.4s infinite;
+        }
+
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes loadingDots {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Scroll Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header fade-in">
+            <div class="logo-container">
+                <h1 class="logo">TurboX</h1>
+            </div>
+            <p class="subtitle">Central de Ferramentas Empresariais</p>
+            <p class="description">
+                Plataforma unificada para automação e integração de processos empresariais. 
+                Centralize todas as suas ferramentas em um só lugar com tecnologia de ponta.
+            </p>
+            
+            <div class="stats fade-in">
+                <div class="stat-item">
+                    <span class="stat-number">2</span>
+                    <span class="stat-label">Ferramentas Ativas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">2</span>
+                    <span class="stat-label">Em Desenvolvimento</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">∞</span>
+                    <span class="stat-label">Possibilidades</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="tools-grid">
+            <!-- SIN - Sistema Integrado -->
+            <div class="tool-card sin fade-in">
+                <div class="tool-header">
+                    <i class="fas fa-sync-alt tool-icon"></i>
+                    <span class="status-badge active">Ativo</span>
+                </div>
+                <h3 class="tool-title">SIN - Sistema Integrado</h3>
+                <p class="tool-description">
+                    Integração completa entre ClickUp e Conta Azul. Sincronize clientes, 
+                    visualize cobranças e gerencie dados financeiros em tempo real com interface moderna.
+                </p>
+                <ul class="tool-features">
+                    <li>Sincronização ClickUp ↔ Conta Azul</li>
+                    <li>Dashboard de clientes unificado</li>
+                    <li>Filtros avançados de busca</li>
+                    <li>Relatórios de cobranças detalhados</li>
+                    <li>Interface responsiva e intuitiva</li>
+                </ul>
+                <a href="/sin" class="tool-button success">
+                    <i class="fas fa-rocket"></i> 
+                    <span>Acessar SIN</span>
+                </a>
+            </div>
+
+            <!-- TurboChat - Ativo -->
+            <div class="tool-card turbochat fade-in">
+                <div class="tool-header">
+                    <i class="fas fa-comments tool-icon"></i>
+                    <span class="status-badge active">Ativo</span>
+                </div>
+                <h3 class="tool-title">TurboChat</h3>
+                <p class="tool-description">
+                    Interface de chat inteligente para consultas. Faça perguntas em linguagem natural 
+                    e obtenha informações do sistema de forma conversacional e intuitiva.
+                </p>
+                <ul class="tool-features">
+                    <li>Consultas em linguagem natural</li>
+                    <li>Busca por CNPJ ou nome</li>
+                    <li>Listagem inteligente de clientes</li>
+                    <li>Respostas formatadas e contextuais</li>
+                    <li>Interface moderna de chat em tempo real</li>
+                </ul>
+                <a href="/turbochat" class="tool-button primary">
+                    <i class="fas fa-rocket"></i>
+                    <span>Acessar TurboChat</span>
+                </a>
+            </div>
+
+            <!-- AutoFlow - Em Desenvolvimento -->
+            <div class="tool-card coming-soon fade-in">
+                <div class="tool-header">
+                    <i class="fas fa-robot tool-icon"></i>
+                    <span class="status-badge coming">Em Breve</span>
+                </div>
+                <h3 class="tool-title">AutoFlow</h3>
+                <p class="tool-description">
+                    Automação inteligente de processos empresariais com workflows 
+                    personalizados e integração com APIs externas para máxima eficiência.
+                </p>
+                <ul class="tool-features">
+                    <li>Workflows visuais drag-and-drop</li>
+                    <li>Automação de tarefas complexas</li>
+                    <li>Integração com APIs externas</li>
+                    <li>Triggers personalizados e condicionais</li>
+                    <li>Monitoramento em tempo real</li>
+                </ul>
+                <button class="tool-button disabled">
+                    <i class="fas fa-clock"></i>
+                    <span>Em Desenvolvimento</span>
+                    <div class="loading-dots">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- SecureVault - Em Desenvolvimento -->
+            <div class="tool-card coming-soon fade-in">
+                <div class="tool-header">
+                    <i class="fas fa-shield-alt tool-icon"></i>
+                    <span class="status-badge coming">Em Breve</span>
+                </div>
+                <h3 class="tool-title">SecureVault</h3>
+                <p class="tool-description">
+                    Gerenciador seguro de credenciais e configurações empresariais 
+                    com criptografia avançada e controle de acesso granular.
+                </p>
+                <ul class="tool-features">
+                    <li>Criptografia de ponta a ponta</li>
+                    <li>Controle de acesso granular</li>
+                    <li>Auditoria completa e logs detalhados</li>
+                    <li>Backup automático e redundante</li>
+                    <li>Integração SSO empresarial</li>
+                </ul>
+                <button class="tool-button disabled">
+                    <i class="fas fa-clock"></i>
+                    <span>Em Desenvolvimento</span>
+                    <div class="loading-dots">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <div class="footer fade-in">
+            <p>&copy; 2025 TurboX - Central de Ferramentas Empresariais</p>
+            <p>Desenvolvido para otimizar e automatizar processos empresariais com excelência</p>
+        </div>
+    </div>
+
+    <script>
+        // Intersection Observer para animações de scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        // Observar todos os elementos com classe fade-in
+        document.querySelectorAll('.fade-in').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Efeito de hover aprimorado nos botões
+        document.querySelectorAll('.tool-button:not(.disabled)').forEach(button => {
+            button.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-3px) scale(1.02)';
+            });
+            
+            button.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Efeito de parallax sutil no background
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const parallax = document.querySelector('body::before');
+            if (parallax) {
+                const speed = scrolled * 0.5;
+                document.body.style.backgroundPosition = `center ${speed}px`;
+            }
+        });
+
+        // Animação inicial da página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Adicionar classe visible aos elementos iniciais após um pequeno delay
+            setTimeout(() => {
+                document.querySelectorAll('.fade-in').forEach((el, index) => {
+                    setTimeout(() => {
+                        el.classList.add('visible');
+                    }, index * 100);
+                });
+            }, 200);
+        });
+
+        // Smooth scroll para links internos
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
