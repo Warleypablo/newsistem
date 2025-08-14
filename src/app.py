@@ -1,4 +1,5 @@
 import os
+import sys
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import traceback
@@ -27,9 +28,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configuração do OpenAI
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-if OPENAI_AVAILABLE and OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+OPENAI_API_KEY = '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'
 
 # Descrição das colunas da tabela a_receber_turbo para o ChatGPT
 TABELA_DESCRICAO = """
@@ -118,31 +117,40 @@ def interpretar_consulta_com_chatgpt(mensagem_usuario):
     
     try:
         prompt = f"""
-Você é um assistente especializado em consultas SQL para um sistema financeiro.
+Você é um assistente especializado em consultas SQL para um sistema financeiro de cobrança.
 
 {TABELA_DESCRICAO}
 
 Consulta do usuário: "{mensagem_usuario}"
 
-Gere uma query SQL PostgreSQL para responder à consulta do usuário. 
-Retorne APENAS o SQL, sem explicações.
-Use JOINs quando necessário entre as tabelas.
-Para consultas de valores, use SUM() para somar valores.
-Para datas, use CURRENT_DATE para data atual.
-Para filtros de status, use os valores exatos: ACQUITTED, OVERDUE, LOST, PENDING.
+IMPORTANTE: Gere uma query SQL PostgreSQL precisa para responder à consulta do usuário.
+Retorne APENAS o código SQL, sem explicações, comentários ou formatação markdown.
 
-Exemplos:
-- "Quanto recebemos em 2024?" -> SELECT SUM(pago) FROM a_receber_turbo WHERE EXTRACT(YEAR FROM data_vencimento) = 2024
-- "Clientes inadimplentes" -> SELECT cliente_nome, SUM(nao_pago) FROM a_receber_turbo WHERE status = 'OVERDUE' GROUP BY cliente_nome
-- "Top 5 clientes" -> SELECT cliente_nome, SUM(pago) FROM a_receber_turbo GROUP BY cliente_nome ORDER BY SUM(pago) DESC LIMIT 5
+Regras específicas:
+- Tabela principal: a_receber_turbo
+- Status de pagamento: ACQUITTED (pago), OVERDUE (inadimplente), LOST (perda), PENDING (pendente)
+- Para valores monetários: use SUM(pago) para recebido, SUM(nao_pago) para inadimplência, SUM(total) para valor total
+- Para datas: use data_vencimento e CURRENT_DATE
+- Para filtros de período: use EXTRACT(YEAR/MONTH FROM data_vencimento)
+- Para rankings: use ORDER BY ... DESC LIMIT N
+
+Exemplos práticos:
+- "Quanto recebemos este ano?" -> SELECT SUM(pago) FROM a_receber_turbo WHERE EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+- "Clientes inadimplentes" -> SELECT cliente_nome, cnpj, SUM(nao_pago) as valor_inadimplente FROM a_receber_turbo WHERE status = 'OVERDUE' GROUP BY cliente_nome, cnpj ORDER BY valor_inadimplente DESC
+- "Top 5 clientes que mais pagaram" -> SELECT cliente_nome, SUM(pago) as total_pago FROM a_receber_turbo WHERE status = 'ACQUITTED' GROUP BY cliente_nome ORDER BY total_pago DESC LIMIT 5
+- "Parcelas vencidas hoje" -> SELECT cliente_nome, total, descricao FROM a_receber_turbo WHERE data_vencimento = CURRENT_DATE AND status != 'ACQUITTED'
+- "Receita de setembro" -> SELECT SUM(pago) FROM a_receber_turbo WHERE EXTRACT(MONTH FROM data_vencimento) = 9 AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
 
 SQL:
 """
         
-        response = openai.ChatCompletion.create(
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Você é um especialista em SQL para sistemas financeiros. Retorne apenas o código SQL, sem explicações."},
+                {"role": "system", "content": "Você é um especialista em SQL PostgreSQL para sistemas de cobrança financeira. Analise a consulta do usuário e gere APENAS o código SQL necessário, sem explicações, comentários ou formatação markdown. Seja preciso e use as colunas e valores exatos conforme especificado."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=500,
@@ -156,7 +164,13 @@ SQL:
         return sql_query, None
         
     except Exception as e:
-        return None, f"Erro ao consultar ChatGPT: {str(e)}"
+        error_msg = str(e)
+        if "insufficient_quota" in error_msg or "429" in error_msg:
+            return None, "ChatGPT: Cota da API excedida. Verifique seu plano e faturamento no OpenAI."
+        elif "401" in error_msg or "invalid" in error_msg.lower():
+            return None, "ChatGPT: Chave da API inválida. Verifique OPENAI_API_KEY."
+        else:
+            return None, f"Erro ao consultar ChatGPT: {error_msg}"
 
 def executar_consulta_chatgpt(mensagem_usuario):
     """Executar consulta interpretada pelo ChatGPT"""
@@ -262,6 +276,11 @@ def sin_module():
 def turbochat():
     """TurboChat - Interface de Chat para consultas"""
     return render_template('turbochat.html')
+
+@app.route('/turbozap')
+def turbozap():
+    """TurboZap - Sistema de envio automatizado de mensagens WhatsApp"""
+    return render_template('turbozap.html')
 
 # Rota para verificar a conexão com o banco de dados
 @app.route('/check-db')
@@ -683,41 +702,61 @@ def turbochat_message():
     
     # Processar diferentes tipos de consulta baseado na mensagem
     try:
-        # Detectar CNPJ primeiro (prioridade alta)
+        # Detectar saudações e mensagens simples primeiro
         import re
+        saudacoes = ['oi', 'olá', 'ola', 'hello', 'hi', 'bom dia', 'boa tarde', 'boa noite']
+        if any(saudacao in message for saudacao in saudacoes):
+            return jsonify({
+                'type': 'success',
+                'message': '👋 Olá! Sou o assistente inteligente do TurboChat. Posso ajudá-lo com:\n\n' +
+                          '📊 **Análises financeiras** - "quanto vamos receber em setembro"\n' +
+                          '🏆 **Rankings de clientes** - "quem são os maiores devedores"\n' +
+                          '⚠️ **Inadimplência** - "quem não pagou hoje"\n' +
+                          '🔍 **Busca por CNPJ** - digite o CNPJ do cliente\n\n' +
+                          'Como posso ajudá-lo hoje?'
+            })
+        
+        # Detectar CNPJ (prioridade alta)
         cnpj_match = re.search(r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}|\d{14}', message)
         if cnpj_match:
             cnpj = re.sub(r'\D', '', cnpj_match.group())
             return buscar_por_cnpj_chat(cnpj)
         
         # Tentar interpretar com ChatGPT primeiro (se disponível)
+        print(f"=== DEBUG: OPENAI_AVAILABLE={OPENAI_AVAILABLE}, OPENAI_API_KEY={'SET' if OPENAI_API_KEY else 'NOT SET'} ===", file=sys.stderr)
         if OPENAI_AVAILABLE and OPENAI_API_KEY:
             try:
+                print(f"=== DEBUG: Chamando ChatGPT para mensagem: {message_original} ===", file=sys.stderr)
                 resultado_chatgpt = executar_consulta_chatgpt(message_original)
                 resultado_json = resultado_chatgpt.get_json()
+                print(f"=== DEBUG: Resposta ChatGPT: {resultado_json} ===", file=sys.stderr)
                 
                 # Se o ChatGPT retornou sucesso, usar sua resposta
                 if resultado_json.get('type') == 'success':
+                    print("=== DEBUG: Usando resposta do ChatGPT ===", file=sys.stderr)
                     return resultado_chatgpt
                 # Se retornou warning, continuar com interpretação básica
                 elif resultado_json.get('type') == 'warning':
+                    print("=== DEBUG: ChatGPT retornou warning, usando interpretação básica ===", file=sys.stderr)
                     pass  # Continua para interpretação básica
             except Exception as e:
-                print(f"Erro ChatGPT: {e}", file=sys.stderr)
+                print(f"=== DEBUG: Erro ChatGPT: {e} ===", file=sys.stderr)
                 # Em caso de erro, continuar com interpretação básica
                 pass
+        else:
+            print("=== DEBUG: ChatGPT não disponível, usando interpretação básica ===", file=sys.stderr)
         
         # Fallback: Interpretação básica (sistema atual)
-        # Consultas analíticas sobre receitas e valores
-        if any(word in message for word in ['quanto', 'valor', 'total', 'receita', 'recebemos', 'arrecadamos']):
+        # Consultas analíticas sobre receitas e valores (expandido)
+        if any(word in message for word in ['quanto', 'valor', 'total', 'receita', 'recebemos', 'arrecadamos', 'vamos receber', 'receber', 'faturamento', 'ganho', 'lucro', 'setembro', 'outubro', 'novembro', 'dezembro', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto']):
             return processar_consulta_analitica(message)
         
         # Consultas sobre clientes específicos (ranking, comparações)
-        elif any(word in message for word in ['cliente que mais', 'maior cliente', 'melhor cliente', 'ranking', 'top']):
+        elif any(word in message for word in ['cliente que mais', 'maior cliente', 'melhor cliente', 'ranking', 'top', 'quem mais', 'melhor pagador', 'maior pagador']):
             return processar_consulta_ranking(message)
         
-        # Consultas sobre status e inadimplência
-        elif any(word in message for word in ['inadimplente', 'vencido', 'pendente', 'atraso', 'devendo']):
+        # Consultas sobre status e inadimplência (expandido)
+        elif any(word in message for word in ['inadimplente', 'vencido', 'pendente', 'atraso', 'devendo', 'não pagou', 'nao pagou', 'deixou de pagar', 'em atraso', 'atrasado']):
             return processar_consulta_inadimplencia(message)
         
         # Listar todos os clientes (verificar ANTES de buscar por nome)
@@ -839,13 +878,61 @@ def processar_consulta_analitica(message):
         import re
         from datetime import datetime, date
         
+        # Mapeamento de meses
+        meses = {
+            'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6,
+            'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12
+        }
+        
         ano_match = re.search(r'\b(20\d{2})\b', message)
         mes_atual = 'mês' in message or 'mes' in message
         ano_atual = 'ano' in message and not ano_match
         
+        # Detectar mês específico
+        mes_especifico = None
+        for nome_mes, numero_mes in meses.items():
+            if nome_mes in message:
+                mes_especifico = numero_mes
+                break
+        
         response = "📊 **Análise Financeira**\n\n"
         
-        if ano_match:
+        if mes_especifico:
+            # Consulta por mês específico do ano atual
+            nome_mes = [k for k, v in meses.items() if v == mes_especifico][0]
+            cursor.execute("""
+            SELECT 
+                SUM(pago) as total_recebido,
+                SUM(nao_pago) as total_pendente,
+                SUM(total) as total_geral,
+                COUNT(*) as total_faturas,
+                COUNT(CASE WHEN nao_pago = 0 THEN 1 END) as faturas_pagas,
+                COUNT(CASE WHEN nao_pago > 0 THEN 1 END) as faturas_pendentes
+            FROM a_receber_turbo 
+            WHERE EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+            AND EXTRACT(MONTH FROM data_vencimento) = %s
+            """, (mes_especifico,))
+            
+            resultado = cursor.fetchone()
+            
+            if resultado and resultado['total_geral']:
+                total_recebido = float(resultado['total_recebido'] or 0)
+                total_pendente = float(resultado['total_pendente'] or 0)
+                total_geral = float(resultado['total_geral'] or 0)
+                
+                response += f"**📅 {nome_mes.title()} {datetime.now().year}:**\n"
+                response += f"💰 **Total Recebido**: R$ {total_recebido:,.2f}\n"
+                response += f"⏳ **Total Pendente**: R$ {total_pendente:,.2f}\n"
+                response += f"📊 **Total Geral**: R$ {total_geral:,.2f}\n"
+                response += f"📋 **Faturas**: {resultado['total_faturas']} ({resultado['faturas_pagas']} pagas, {resultado['faturas_pendentes']} pendentes)\n"
+                
+                if total_geral > 0:
+                    percentual_recebido = (total_recebido / total_geral) * 100
+                    response += f"📈 **Taxa de Recebimento**: {percentual_recebido:.1f}%\n"
+            else:
+                response += f"❌ Nenhum dado encontrado para {nome_mes} de {datetime.now().year}.\n"
+                
+        elif ano_match:
             # Consulta por ano específico
             ano = ano_match.group(1)
             cursor.execute("""
