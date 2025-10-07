@@ -1,0 +1,16 @@
+# Dependências do TurboZap
+
+# Banco de Dados
+psycopg2-binary==2.9.7
+
+# Requisições HTTP
+requests==2.31.0
+
+# Gerenciamento de Variáveis de Ambiente
+python-dotenv==1.0.0
+
+# Utilitários de Data e Hora
+python-dateutil==2.8.2
+
+# Logging Avançado (opcional)
+coloredlogs==15.0.1

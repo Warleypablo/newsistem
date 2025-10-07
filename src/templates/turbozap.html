@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurboZap - Envio Automatizado WhatsApp</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            --secondary-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151a36;
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --bg-card-hover: rgba(255, 255, 255, 0.08);
+            
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.85);
+            --text-muted: rgba(255, 255, 255, 0.6);
+            
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-light: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.4);
+            
+            --border-radius: 20px;
+            --border-radius-sm: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background Animation */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(37, 211, 102, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(18, 140, 126, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(79, 172, 254, 0.1) 0%, transparent 50%);
+            z-index: -1;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-50%) translateX(-3px);
+            color: white;
+            box-shadow: var(--shadow-light);
+        }
+
+        .header-icon {
+            font-size: 4rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-light);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .feature-list li i {
+            color: #25D366;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(37, 211, 102, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-light);
+        }
+
+        /* Status Section */
+        .status-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-light);
+        }
+
+        .status-icon {
+            font-size: 3rem;
+            color: #25D366;
+            margin-bottom: 20px;
+        }
+
+        .status-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .status-description {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .coming-soon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .header-icon {
+                font-size: 3rem;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .card {
+                padding: 30px 25px;
+            }
+
+            .back-button {
+                position: static;
+                transform: none;
+                margin-bottom: 20px;
+                align-self: flex-start;
+            }
+
+            .header {
+                text-align: left;
+            }
+        }
+
+        /* Animation Classes */
+        .fade-in {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header fade-in">
+            <a href="/turbox" class="back-button">
+                <i class="fas fa-arrow-left"></i>
+                <span>Voltar</span>
+            </a>
+            <div class="header-icon">
+                <i class="fab fa-whatsapp"></i>
+            </div>
+            <h1>TurboZap</h1>
+            <p>Sistema automatizado de envio de mensagens WhatsApp para gestão de cobranças e comunicação com clientes inadimplentes.</p>
+        </div>
+
+        <div class="main-content">
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-cogs card-icon"></i>
+                    <h2>Funcionalidades</h2>
+                </div>
+                <p>O TurboZap oferece um conjunto completo de ferramentas para automatizar a comunicação via WhatsApp:</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check-circle"></i> Envio automatizado de mensagens</li>
+                    <li><i class="fas fa-check-circle"></i> Templates personalizados por período</li>
+                    <li><i class="fas fa-check-circle"></i> Gestão de clientes inadimplentes</li>
+                    <li><i class="fas fa-check-circle"></i> Integração com Evolution API</li>
+                    <li><i class="fas fa-check-circle"></i> Relatórios detalhados de envio</li>
+                    <li><i class="fas fa-check-circle"></i> Interface de linha de comando</li>
+                </ul>
+                <a href="#" class="btn btn-secondary">
+                    <i class="fas fa-book"></i>
+                    <span>Documentação</span>
+                </a>
+            </div>
+
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-rocket card-icon"></i>
+                    <h2>Como Usar</h2>
+                </div>
+                <p>Configure e execute o TurboZap em poucos passos:</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check-circle"></i> Configure as variáveis de ambiente</li>
+                    <li><i class="fas fa-check-circle"></i> Conecte com sua instância Evolution API</li>
+                    <li><i class="fas fa-check-circle"></i> Defina os períodos de cobrança</li>
+                    <li><i class="fas fa-check-circle"></i> Execute via linha de comando</li>
+                    <li><i class="fas fa-check-circle"></i> Monitore os envios em tempo real</li>
+                </ul>
+                <a href="#" class="btn btn-primary">
+                    <i class="fas fa-play"></i>
+                    <span>Executar Agora</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="status-section fade-in">
+            <div class="coming-soon">Módulo Ativo</div>
+            <div class="status-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2 class="status-title">TurboZap Disponível</h2>
+            <p class="status-description">
+                O módulo TurboZap está totalmente funcional e pronto para uso. 
+                Acesse via linha de comando no diretório API_WHATSAPP para começar a automatizar suas cobranças via WhatsApp.
+            </p>
+            <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                <a href="#" class="btn btn-primary">
+                    <i class="fas fa-terminal"></i>
+                    <span>Acessar Terminal</span>
+                </a>
+                <a href="#" class="btn btn-secondary">
+                    <i class="fas fa-cog"></i>
+                    <span>Configurações</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animações de entrada
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.fade-in');
+            elements.forEach((element, index) => {
+                element.style.animationDelay = `${index * 0.2}s`;
+            });
+        });
+
+        // Efeitos de hover nos cards
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+</body>
+</html>
