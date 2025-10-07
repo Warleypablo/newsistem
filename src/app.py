@@ -36,9 +36,9 @@ LOGIN_PASSWORD = 'Turbo100*'
 # Configuração do OpenAI
 OPENAI_API_KEY = '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'
 
-# Descrição das colunas da tabela a_receber_turbo para o ChatGPT
+# Descrição das colunas da tabela caz_receber para o ChatGPT
 TABELA_DESCRICAO = """
-Tabela: a_receber_turbo
+Tabela: caz_receber
 Colunas:
 - status: indica o status do pagamento (ACQUITTED=paga, OVERDUE=inadimplente, LOST=perda, PENDING=pendente)
 - total: valor total da parcela
@@ -52,12 +52,12 @@ Colunas:
 - status_clickup: status operacional do cliente
 - link_pagamento: link de pagamento da parcela
 
-Tabela: clientes_turbo
+Tabela: caz_clientes
 Colunas:
 - nome: nome do cliente
 - cnpj: CNPJ do cliente
 
-Tabela: clientes_clickup
+Tabela: cup_clientes
 Colunas:
 - responsavel: responsável pelo cliente
 - segmento: segmento do cliente
@@ -166,7 +166,7 @@ IMPORTANTE: Gere uma query SQL PostgreSQL precisa para responder à consulta do 
 Retorne APENAS o código SQL, sem explicações, comentários ou formatação markdown.
 
 Regras específicas:
-- Tabela principal: a_receber_turbo
+- Tabela principal: caz_receber
 - Status de pagamento: ACQUITTED (pago), OVERDUE (inadimplente), LOST (perda), PENDING (pendente)
 - Para valores monetários: use SUM(pago) para recebido, SUM(nao_pago) para inadimplência, SUM(total) para valor total
 - Para datas: use data_vencimento e CURRENT_DATE
@@ -174,11 +174,11 @@ Regras específicas:
 - Para rankings: use ORDER BY ... DESC LIMIT N
 
 Exemplos práticos:
-- "Quanto recebemos este ano?" -> SELECT SUM(pago) FROM a_receber_turbo WHERE EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
-- "Clientes inadimplentes" -> SELECT cliente_nome, cnpj, SUM(nao_pago) as valor_inadimplente FROM a_receber_turbo WHERE status = 'OVERDUE' GROUP BY cliente_nome, cnpj ORDER BY valor_inadimplente DESC
-- "Top 5 clientes que mais pagaram" -> SELECT cliente_nome, SUM(pago) as total_pago FROM a_receber_turbo WHERE status = 'ACQUITTED' GROUP BY cliente_nome ORDER BY total_pago DESC LIMIT 5
-- "Parcelas vencidas hoje" -> SELECT cliente_nome, total, descricao FROM a_receber_turbo WHERE data_vencimento = CURRENT_DATE AND status != 'ACQUITTED'
-- "Receita de setembro" -> SELECT SUM(pago) FROM a_receber_turbo WHERE EXTRACT(MONTH FROM data_vencimento) = 9 AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+- "Quanto recebemos este ano?" -> SELECT SUM(pago) FROM caz_receber WHERE EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+- "Clientes inadimplentes" -> SELECT cliente_nome, cnpj, SUM(nao_pago) as valor_inadimplente FROM caz_receber WHERE status = 'OVERDUE' GROUP BY cliente_nome, cnpj ORDER BY valor_inadimplente DESC
+- "Top 5 clientes que mais pagaram" -> SELECT cliente_nome, SUM(pago) as total_pago FROM caz_receber WHERE status = 'ACQUITTED' GROUP BY cliente_nome ORDER BY total_pago DESC LIMIT 5
+- "Parcelas vencidas hoje" -> SELECT cliente_nome, total, descricao FROM caz_receber WHERE data_vencimento = CURRENT_DATE AND status != 'ACQUITTED'
+- "Receita de setembro" -> SELECT SUM(pago) FROM caz_receber WHERE EXTRACT(MONTH FROM data_vencimento) = 9 AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
 
 SQL:
 """
@@ -425,8 +425,8 @@ def buscar():
                SUM(a.total) as total_geral,
                SUM(a.pago) as total_pago,
                SUM(a.nao_pago) as total_pendente
-        FROM clientes_turbo c
-        LEFT JOIN a_receber_turbo a ON c.nome = a.cliente_nome
+        FROM caz_clientes c
+        LEFT JOIN caz_receber a ON c.nome = a.cliente_nome
         WHERE c.cnpj = %s
         GROUP BY c.nome, c.cnpj
         """, (cnpj,))
@@ -467,11 +467,11 @@ def buscar():
                    WHEN a.nao_pago = 0 THEN 4                                        -- Pagos por último
                    ELSE 5
                END as ordem_prioridade
-        FROM a_receber_turbo a
-        JOIN clientes_turbo c ON a.cliente_nome = c.nome
+        FROM caz_receber a
+        JOIN caz_clientes c ON a.cliente_nome = c.nome
         LEFT JOIN (
             SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-            FROM clientes_clickup
+            FROM cup_clientes
             ORDER BY cnpj, id DESC
         ) ck ON c.cnpj = ck.cnpj
         LEFT JOIN (
@@ -479,7 +479,7 @@ def buscar():
                    SUM(pago) as total_pago,
                    COUNT(*) as total_faturas,
                    SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-            FROM a_receber_turbo
+            FROM caz_receber
             GROUP BY cliente_nome
         ) ltv ON a.cliente_nome = ltv.cliente_nome
         WHERE c.cnpj = %s
@@ -505,10 +505,10 @@ def buscar():
                    ltv.total_pago as ltv_total,
                    ltv.total_faturas,
                    ltv.valor_inadimplente_total
-            FROM clientes_turbo c
+            FROM caz_clientes c
             LEFT JOIN (
                 SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-                FROM clientes_clickup
+                FROM cup_clientes
                 ORDER BY cnpj, id DESC
             ) ck ON c.cnpj = ck.cnpj
             LEFT JOIN (
@@ -516,7 +516,7 @@ def buscar():
                        SUM(pago) as total_pago,
                        COUNT(*) as total_faturas,
                        SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-                FROM a_receber_turbo
+                FROM caz_receber
                 GROUP BY cliente_nome
             ) ltv ON c.nome = ltv.cliente_nome
             WHERE c.cnpj = %s
@@ -607,7 +607,7 @@ def buscar_por_nome():
         
         # Consulta para buscar contas a receber pelo nome do cliente
         # Mostrando registros com saldo pendente (nao_pago > 0)
-        # Usando status_clickup diretamente da tabela a_receber_turbo
+        # Usando status_clickup diretamente da tabela caz_receber
         cursor.execute("""
         SELECT DISTINCT a.id, a.status, a.total, a.descricao, a.data_vencimento, 
                a.nao_pago, a.pago, a.data_criacao, a.data_alteracao, 
@@ -618,11 +618,11 @@ def buscar_por_nome():
                ltv.total_pago as ltv_total,
                ltv.total_faturas,
                ltv.valor_inadimplente_total
-        FROM a_receber_turbo a
-        LEFT JOIN clientes_turbo c ON a.cliente_nome = c.nome
+        FROM caz_receber a
+        LEFT JOIN caz_clientes c ON a.cliente_nome = c.nome
         LEFT JOIN (
             SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-            FROM clientes_clickup
+            FROM cup_clientes
             ORDER BY cnpj, id DESC
         ) ck ON c.cnpj = ck.cnpj
         LEFT JOIN (
@@ -630,7 +630,7 @@ def buscar_por_nome():
                    SUM(pago) as total_pago,
                    COUNT(*) as total_faturas,
                    SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-            FROM a_receber_turbo
+            FROM caz_receber
             GROUP BY cliente_nome
         ) ltv ON a.cliente_nome = ltv.cliente_nome
         WHERE a.cliente_nome ILIKE %s
@@ -701,9 +701,9 @@ def listar_clientes():
                    WHEN COUNT(a.id) FILTER (WHERE a.nao_pago > 0 AND a.data_vencimento <= CURRENT_DATE) > 0 THEN true
                    ELSE false
                END as tem_pendencias
-        FROM clientes_turbo c
-        LEFT JOIN clientes_clickup ck ON c.cnpj = ck.cnpj
-        LEFT JOIN a_receber_turbo a ON c.nome = a.cliente_nome
+        FROM caz_clientes c
+        LEFT JOIN cup_clientes ck ON c.cnpj = ck.cnpj
+        LEFT JOIN caz_receber a ON c.nome = a.cliente_nome
         GROUP BY c.nome, c.cnpj, ck.responsavel, ck.segmento, ck.cluster, ck.status_conta, ck.atividade, ck.telefone, a.status_clickup
         ORDER BY c.nome
         """)
@@ -955,7 +955,7 @@ def processar_consulta_analitica(message):
                 COUNT(*) as total_faturas,
                 COUNT(CASE WHEN nao_pago = 0 THEN 1 END) as faturas_pagas,
                 COUNT(CASE WHEN nao_pago > 0 THEN 1 END) as faturas_pendentes
-            FROM a_receber_turbo 
+            FROM caz_receber 
             WHERE EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
             AND EXTRACT(MONTH FROM data_vencimento) = %s
             """, (mes_especifico,))
@@ -990,7 +990,7 @@ def processar_consulta_analitica(message):
                 COUNT(*) as total_faturas,
                 COUNT(CASE WHEN nao_pago = 0 THEN 1 END) as faturas_pagas,
                 COUNT(CASE WHEN nao_pago > 0 THEN 1 END) as faturas_pendentes
-            FROM a_receber_turbo 
+            FROM caz_receber 
             WHERE EXTRACT(YEAR FROM data_vencimento) = %s
             """, (ano,))
             
@@ -1023,7 +1023,7 @@ def processar_consulta_analitica(message):
                 COUNT(*) as total_faturas,
                 COUNT(CASE WHEN nao_pago = 0 THEN 1 END) as faturas_pagas,
                 COUNT(CASE WHEN nao_pago > 0 THEN 1 END) as faturas_pendentes
-            FROM a_receber_turbo 
+            FROM caz_receber 
             WHERE EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
             AND EXTRACT(MONTH FROM data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
             """)
@@ -1058,7 +1058,7 @@ def processar_consulta_analitica(message):
                 COUNT(CASE WHEN nao_pago = 0 THEN 1 END) as faturas_pagas,
                 COUNT(CASE WHEN nao_pago > 0 THEN 1 END) as faturas_pendentes,
                 COUNT(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN 1 END) as faturas_vencidas
-            FROM a_receber_turbo
+            FROM caz_receber
             """)
             
             resultado = cursor.fetchone()
@@ -1126,11 +1126,11 @@ def processar_consulta_ranking(message):
                 COUNT(a.id) as total_faturas,
                 ck.responsavel,
                 ck.segmento
-            FROM clientes_turbo c
-            LEFT JOIN a_receber_turbo a ON c.nome = a.cliente_nome
+            FROM caz_clientes c
+            LEFT JOIN caz_receber a ON c.nome = a.cliente_nome
             LEFT JOIN (
                 SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento
-                FROM clientes_clickup
+                FROM cup_clientes
                 ORDER BY cnpj, id DESC
             ) ck ON c.cnpj = ck.cnpj
             GROUP BY c.nome, c.cnpj, ck.responsavel, ck.segmento
@@ -1212,11 +1212,11 @@ def processar_consulta_inadimplencia(message):
             ck.responsavel,
             ck.telefone,
             ck.segmento
-        FROM clientes_turbo c
-        JOIN a_receber_turbo a ON c.nome = a.cliente_nome
+        FROM caz_clientes c
+        JOIN caz_receber a ON c.nome = a.cliente_nome
         LEFT JOIN (
             SELECT DISTINCT ON (cnpj) cnpj, responsavel, telefone, segmento
-            FROM clientes_clickup
+            FROM cup_clientes
             ORDER BY cnpj, id DESC
         ) ck ON c.cnpj = ck.cnpj
         WHERE a.nao_pago > 0 AND a.data_vencimento < CURRENT_DATE
@@ -1311,8 +1311,8 @@ def buscar_por_cnpj_chat(cnpj):
                SUM(a.pago) as total_pago,
                SUM(a.nao_pago) as total_pendente,
                COUNT(CASE WHEN a.nao_pago > 0 AND a.data_vencimento <= CURRENT_DATE THEN 1 END) as faturas_vencidas
-        FROM clientes_turbo c
-        LEFT JOIN a_receber_turbo a ON c.nome = a.cliente_nome
+        FROM caz_clientes c
+        LEFT JOIN caz_receber a ON c.nome = a.cliente_nome
         WHERE c.cnpj = %s
         GROUP BY c.nome, c.cnpj
         """, (cnpj,))
@@ -1352,11 +1352,11 @@ def buscar_por_cnpj_chat(cnpj):
                    WHEN a.nao_pago = 0 THEN 4                                        -- Pagos por último
                    ELSE 5
                END as ordem_prioridade
-        FROM a_receber_turbo a
-        JOIN clientes_turbo c ON a.cliente_nome = c.nome
+        FROM caz_receber a
+        JOIN caz_clientes c ON a.cliente_nome = c.nome
         LEFT JOIN (
             SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-            FROM clientes_clickup
+            FROM cup_clientes
             ORDER BY cnpj, id DESC
         ) ck ON c.cnpj = ck.cnpj
         LEFT JOIN (
@@ -1364,7 +1364,7 @@ def buscar_por_cnpj_chat(cnpj):
                    SUM(pago) as total_pago,
                    COUNT(*) as total_faturas,
                    SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-            FROM a_receber_turbo
+            FROM caz_receber
             GROUP BY cliente_nome
         ) ltv ON a.cliente_nome = ltv.cliente_nome
         WHERE c.cnpj = %s
@@ -1387,10 +1387,10 @@ def buscar_por_cnpj_chat(cnpj):
                    ltv.total_pago as ltv_total,
                    ltv.total_faturas,
                    ltv.valor_inadimplente_total
-            FROM clientes_turbo c
+            FROM caz_clientes c
             LEFT JOIN (
                 SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-                FROM clientes_clickup
+                FROM cup_clientes
                 ORDER BY cnpj, id DESC
             ) ck ON c.cnpj = ck.cnpj
             LEFT JOIN (
@@ -1398,7 +1398,7 @@ def buscar_por_cnpj_chat(cnpj):
                        SUM(pago) as total_pago,
                        COUNT(*) as total_faturas,
                        SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-                FROM a_receber_turbo
+                FROM caz_receber
                 GROUP BY cliente_nome
             ) ltv ON c.nome = ltv.cliente_nome
             WHERE c.cnpj = %s
@@ -1618,8 +1618,8 @@ def detalhes_fatura(fatura_id):
                a.nao_pago, a.pago, a.data_criacao, a.data_alteracao, 
                a.cliente_id, a.cliente_nome, a.link_pagamento,
                c.cnpj, c.telefone, c.email
-        FROM a_receber_turbo a
-        LEFT JOIN clientes_turbo c ON a.cliente_nome = c.nome
+        FROM caz_receber a
+        LEFT JOIN caz_clientes c ON a.cliente_nome = c.nome
         WHERE a.id = %s
         """, (fatura_id,))
         
@@ -1664,11 +1664,11 @@ def buscar_por_nome_chat(nome):
                ltv.total_pago as ltv_total,
                ltv.total_faturas,
                ltv.valor_inadimplente_total
-        FROM a_receber_turbo a
-        LEFT JOIN clientes_turbo c ON a.cliente_nome = c.nome
+        FROM caz_receber a
+        LEFT JOIN caz_clientes c ON a.cliente_nome = c.nome
         LEFT JOIN (
             SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-            FROM clientes_clickup
+            FROM cup_clientes
             ORDER BY cnpj, id DESC
         ) ck ON c.cnpj = ck.cnpj
         LEFT JOIN (
@@ -1676,7 +1676,7 @@ def buscar_por_nome_chat(nome):
                    SUM(pago) as total_pago,
                    COUNT(*) as total_faturas,
                    SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-            FROM a_receber_turbo
+            FROM caz_receber
             GROUP BY cliente_nome
         ) ltv ON a.cliente_nome = ltv.cliente_nome
         WHERE a.cliente_nome ILIKE %s
@@ -1778,19 +1778,19 @@ def listar_clientes_chat():
                    ELSE false
                END as tem_pendencias,
                SUM(a.nao_pago) FILTER (WHERE a.nao_pago > 0 AND a.data_vencimento <= CURRENT_DATE) as total_pendente
-        FROM clientes_turbo c
+        FROM caz_clientes c
         LEFT JOIN (
             SELECT DISTINCT ON (cnpj) cnpj, responsavel, segmento, cluster, status_conta, atividade, telefone
-            FROM clientes_clickup
+            FROM cup_clientes
             ORDER BY cnpj, id DESC
         ) ck ON c.cnpj = ck.cnpj
-        LEFT JOIN a_receber_turbo a ON c.nome = a.cliente_nome
+        LEFT JOIN caz_receber a ON c.nome = a.cliente_nome
         LEFT JOIN (
             SELECT cliente_nome,
                    SUM(pago) as total_pago,
                    COUNT(*) as total_faturas,
                    SUM(CASE WHEN nao_pago > 0 AND data_vencimento < CURRENT_DATE THEN nao_pago ELSE 0 END) as valor_inadimplente_total
-            FROM a_receber_turbo
+            FROM caz_receber
             GROUP BY cliente_nome
         ) ltv ON c.nome = ltv.cliente_nome
         GROUP BY c.nome, c.cnpj, ck.responsavel, ck.segmento, ck.cluster, ck.status_conta, ck.atividade, ck.telefone, ltv.total_pago, ltv.total_faturas, ltv.valor_inadimplente_total

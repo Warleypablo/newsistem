@@ -57,9 +57,9 @@ PG_PORT=5432
 ## 📊 Estrutura do Banco
 
 O banco precisa ter as seguintes tabelas:
-- `clientes_turbo`
-- `a_receber_turbo`
-- `clientes_clickup`
+- `caz_clientes`
+- `caz_receber`
+- `cup_clientes`
 
 ## 🚨 Troubleshooting
 

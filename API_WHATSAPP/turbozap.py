@@ -218,7 +218,7 @@ class ClienteManager:
         """Busca clientes com vencimento específico"""
         query = """
             SELECT id, cliente_nome, telefone, data_vencimento, total, link_pagamento, status
-            FROM a_receber_turbo
+            FROM caz_receber
             WHERE data_vencimento = %s
             AND telefone IS NOT NULL
             AND telefone != ''
@@ -242,7 +242,7 @@ class ClienteManager:
         
         query = """
             SELECT id, cliente_nome, telefone, data_vencimento, total, link_pagamento, status
-            FROM a_receber_turbo
+            FROM caz_receber
             WHERE data_vencimento <= %s
             AND telefone IS NOT NULL
             AND telefone != ''
