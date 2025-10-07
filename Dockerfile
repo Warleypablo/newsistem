@@ -30,5 +30,5 @@ USER app
 # Expose the port
 EXPOSE 8000
 
-# Use the start script or fallback to gunicorn directly
-CMD ["sh", "-c", "if [ -f start.sh ]; then chmod +x start.sh && ./start.sh; else gunicorn src.app:app --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 120; fi"]
+# Use gunicorn directly with Railway-compatible syntax
+CMD ["gunicorn", "src.app:app", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120"]
