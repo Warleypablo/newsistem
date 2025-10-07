@@ -30,5 +30,5 @@ USER app
 # Expose the port
 EXPOSE 8000
 
-# Use gunicorn directly with Railway-compatible syntax
-CMD ["gunicorn", "src.app:app", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120"]
+# Use gunicorn with minimal configuration for Railway
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "src.app:app"]
